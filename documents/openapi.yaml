@@ -1,0 +1,806 @@
+openapi: 3.0.3
+info:
+  title: CareerPlus Backend API
+  version: 1.0.0
+  description: |
+    Swagger/OpenAPI documentation for the CareerPlus backend (Auth + User modules).
+    - Auth uses **JWT** either via **httpOnly cookie** (`token`) or **Authorization: Bearer** header.
+    - Some endpoints return binary image data.
+servers:
+  - url: http://localhost:8000
+    description: Local development
+  - url: https://api.careeraplus.in
+    description: Production (example)
+
+tags:
+  - name: Auth
+    description: Signup, signin, password flows
+  - name: User
+    description: Profile read/update, photos, resume JSON
+  - name: Blog
+  - name: Category
+  - name: Tag
+
+paths:
+  /api/auth/pre-signup:
+    post:
+      tags: [Auth]
+      summary: Pre signup (email activation)
+      description: |
+        Creates an account activation token and emails it to the user.
+        In development (without SENDGRID_API_KEY), the token is returned in the response.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthPreSignupRequest'
+            examples:
+              default:
+                value: { name: "Amit Parsai", email: "amit.dev+test@example.com", password: "Passw0rd!23" }
+      responses:
+        '200':
+          description: Token emailed or returned for dev
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/MessageResponse'
+                  - $ref: '#/components/schemas/DevTokenResponse'
+        '400':
+          description: Email already exists
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/auth/signup:
+    post:
+      tags: [Auth]
+      summary: Complete signup with activation token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+            examples:
+              default:
+                value: { token: "eyJhbGciOiJIUzI1NiIsInR5cCI..." }
+      responses:
+        '200':
+          description: Signup success
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+        '400':
+          description: Invalid input or email taken
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: Expired or invalid token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/auth/signin:
+    post:
+      tags: [Auth]
+      summary: Sign in (sets httpOnly cookie)
+      description: |
+        Returns a JWT and sets the `token` httpOnly cookie.
+        Subsequent protected requests can use the cookie or pass `Authorization: Bearer <token>`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SigninRequest'
+            examples:
+              default:
+                value: { email: "amit.dev+test@example.com", password: "Passw0rd!23" }
+      responses:
+        '200':
+          description: Signed in
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: httpOnly cookie `token` (JWT); secure+SameSite depends on environment
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SigninResponse' }
+        '400':
+          description: Invalid credentials or user not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/auth/signout:
+    get:
+      tags: [Auth]
+      summary: Sign out (clear cookie)
+      responses:
+        '200':
+          description: Signed out
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+
+  /api/auth/forgot-password:
+    put:
+      tags: [Auth]
+      summary: Start password reset
+      description: |
+        Sends a reset token by email. In development (without SENDGRID_API_KEY), returns the token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ForgotPasswordRequest' }
+            examples:
+              default:
+                value: { email: "amit.dev+test@example.com" }
+      responses:
+        '200':
+          description: Reset email sent or token returned
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/MessageResponse'
+                  - $ref: '#/components/schemas/DevTokenResponse'
+        '401':
+          description: Email not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/auth/reset-password:
+    put:
+      tags: [Auth]
+      summary: Reset password using token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResetPasswordRequest' }
+            examples:
+              default:
+                value: { resetPasswordLink: "eyJhbGciOiJIUzI1NiIs...", newPassword: "NewPassw0rd!23" }
+      responses:
+        '200':
+          description: Password reset success
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: Token expired or invalid
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/user/profile:
+    get:
+      tags: [User]
+      summary: Get signed-in user profile
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserProfile' }
+        '401':
+          description: Not authorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/user/update:
+    put:
+      tags: [User]
+      summary: Update profile (multipart form-data)
+      description: |
+        Accepts text fields (e.g., name, about) and optional file `photosrc`.
+        **Note:** The server normalizes array form fields to single values.
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                about:
+                  type: string
+                photosrc:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserProfile' }
+        '400':
+          description: Invalid input or large file
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: Not authorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/user/public-profile/{username}:
+    get:
+      tags: [User]
+      summary: Get public profile by username
+      parameters:
+        - in: path
+          name: username
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Public user profile (email masked)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserPublic' }
+        '400':
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/user/profile-photo/{username}:
+    get:
+      tags: [User]
+      summary: Get profile photo (binary)
+      parameters:
+        - in: path
+          name: username
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Image
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: No photo
+
+  /api/user/update-profile-photo:
+    put:
+      tags: [User]
+      summary: Update profile photo
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                photosrc:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserProfile' }
+        '400':
+          description: Invalid input or large file
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: Not authorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/user/resume-photo/{username}:
+    get:
+      tags: [User]
+      summary: Get resume photo (binary)
+      parameters:
+        - in: path
+          name: username
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Image
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: No photo
+
+  /api/user/update-resume-photo:
+    put:
+      tags: [User]
+      summary: Update resume photo
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                photosrc:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserProfile' }
+        '400':
+          description: Invalid input or large file
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: Not authorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/user/profile-resume/{username}:
+    get:
+      tags: [User]
+      summary: Get profile resume JSON
+      parameters:
+        - in: path
+          name: username
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Profile resume JSON
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProfileResume' }
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/user/update-profile-resume:
+    put:
+      tags: [User]
+      summary: Update profile resume JSON
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateProfileResumeRequest' }
+            examples:
+              default:
+                value: { list: [], bg: "#ffffff", font: "Inter" }
+      responses:
+        '200':
+          description: Updated resume JSON
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProfileResume' }
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: Not authorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+    /api/blogs:
+    get:
+      tags: [Blog]
+      summary: List blogs
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 50 }
+      responses:
+        '200':
+          description: List of blogs
+  /api/blogs-categories-tags:
+    get:
+      tags: [Blog]
+      summary: List blogs + categories + tags
+      responses:
+        '200':
+          description: Aggregated list
+  /api/blog:
+    post:
+      tags: [Blog]
+      summary: Create blog (admin)
+      description: Multipart/form-data with optional photo file
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                body: { type: string }
+                categories: { type: string, description: "Comma separated category IDs" }
+                tags: { type: string, description: "Comma separated tag IDs" }
+                mtitle: { type: string }
+                mdesc: { type: string }
+                excerpt: { type: string }
+                photo:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Created
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+  /api/blog/{slug}:
+    get:
+      tags: [Blog]
+      summary: Get a blog by slug
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Blog
+        '404':
+          description: Not found
+    put:
+      tags: [Blog]
+      summary: Update blog (admin)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                body: { type: string }
+                categories: { type: string }
+                tags: { type: string }
+                mtitle: { type: string }
+                mdesc: { type: string }
+                excerpt: { type: string }
+                photo: { type: string, format: binary }
+      responses:
+        '200':
+          description: Updated
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+    delete:
+      tags: [Blog]
+      summary: Delete blog (admin)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Deleted
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+  /api/blog/photo/{slug}:
+    get:
+      tags: [Blog]
+      summary: Get blog photo
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Image binary
+          content:
+            image/*: {}
+        '404':
+          description: Not found
+  /api/blogs/related:
+    post:
+      tags: [Blog]
+      summary: List related blogs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                blogId: { type: string }
+                categories:
+                  type: array
+                  items: { type: string }
+      responses:
+        '200':
+          description: Related list
+  /api/category:
+    post:
+      tags: [Category]
+      summary: Create category (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+      responses:
+        '201':
+          description: Created
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+  /api/categories:
+    get:
+      tags: [Category]
+      summary: List categories
+      responses:
+        '200':
+          description: List
+  /api/category/{slug}:
+    get:
+      tags: [Category]
+      summary: Read category
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Category
+        '404':
+          description: Not found
+    delete:
+      tags: [Category]
+      summary: Delete category (admin)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Deleted
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+  /api/tag:
+    post:
+      tags: [Tag]
+      summary: Create tag (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+      responses:
+        '201':
+          description: Created
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+  /api/tags:
+    get:
+      tags: [Tag]
+      summary: List tags
+      responses:
+        '200':
+          description: List
+  /api/tag/{slug}:
+    get:
+      tags: [Tag]
+      summary: Read tag
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Tag
+        '404':
+          description: Not found
+    delete:
+      tags: [Tag]
+      summary: Delete tag (admin)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Deleted
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+
+
+components:
+  securitySchemes:
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: token
+      description: JWT stored in httpOnly cookie named `token`
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required: [message]
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+
+    DevTokenResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Activation token (dev only)
+        token:
+          type: string
+
+    AuthPreSignupRequest:
+      type: object
+      properties:
+        name: { type: string }
+        email: { type: string, format: email }
+        password: { type: string, minLength: 6 }
+      required: [name, email, password]
+
+    SignupRequest:
+      type: object
+      properties:
+        token: { type: string }
+      required: [token]
+
+    SigninRequest:
+      type: object
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 6 }
+      required: [email, password]
+
+    SigninResponse:
+      type: object
+      properties:
+        token: { type: string }
+        user:
+          $ref: '#/components/schemas/UserSummary'
+
+    ForgotPasswordRequest:
+      type: object
+      properties:
+        email: { type: string, format: email }
+      required: [email]
+
+    ResetPasswordRequest:
+      type: object
+      properties:
+        resetPasswordLink: { type: string }
+        newPassword: { type: string, minLength: 6 }
+      required: [resetPasswordLink, newPassword]
+
+    UserSummary:
+      type: object
+      properties:
+        _id: { type: string }
+        username: { type: string }
+        name: { type: string }
+        email: { type: string }
+        role: { type: integer, format: int32 }
+      required: [_id, username, name, email, role]
+
+    UserProfile:
+      type: object
+      description: Current signed-in user's profile (sensitive fields removed)
+      properties:
+        _id: { type: string }
+        username: { type: string }
+        name: { type: string }
+        email: { type: string }
+        profile: { type: string }
+        about: { type: string }
+        role: { type: integer, format: int32 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    UserPublic:
+      type: object
+      description: Public-facing profile (email masked by server)
+      properties:
+        _id: { type: string }
+        username: { type: string }
+        name: { type: string }
+        email: { type: string, example: "dummy@mail.com" }
+        profile: { type: string }
+        about: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    ProfileResume:
+      type: object
+      properties:
+        list:
+          type: array
+          items: { type: object }
+        bg:
+          type: string
+          description: Hex color
+          example: "#ffffff"
+        font:
+          type: string
+          example: "Inter"
+      required: [list, bg, font]
+
+    UpdateProfileResumeRequest:
+      $ref: '#/components/schemas/ProfileResume'

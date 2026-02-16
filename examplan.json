@@ -1,0 +1,313 @@
+
+{
+  "info": {
+    "name": "CareerAPlus - Visualresume",
+    "_postman_id": "0b5f8f2a-visualresume-collection",
+    "description": "Postman collection for visualresume endpoints (GET/PUT visualresume, visualresumeexp, visualresumepro, and public contact form). Routes taken from routes/visualresume.js and controller logic. :contentReference[oaicite:2]{index=2} :contentReference[oaicite:3]{index=3}",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth - Signin (example)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"dev@example.com\",\n  \"password\": \"password123\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/auth/signin",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "auth",
+            "signin"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET Visualresume (current user)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{auth_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/visualresume",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "visualresume"
+          ]
+        },
+        "description": "Requires auth. Uses cookie auth if available or Authorization Bearer header (JWT) as fallback. (routes/visualresume.js) :contentReference[oaicite:4]{index=4}"
+      },
+      "response": []
+    },
+    {
+      "name": "PUT Update Visualresume (current user)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{auth_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"typeOfResume\": \"simple\",\n  \"data\": {\n    \"headline\": \"Full Stack Developer\",\n    \"summary\": \"5+ years building web apps\",\n    \"skills\": [\"Node.js\",\"React\",\"MongoDB\"]\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/visualresume/update",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "visualresume",
+            "update"
+          ]
+        },
+        "description": "PUT body is the visualresume JSON. Controller sanitizes and returns the updated user object (no sensitive fields). See controller behavior for version bumping and sanitization. :contentReference[oaicite:5]{index=5}"
+      },
+      "response": []
+    },
+    {
+      "name": "GET VisualresumeExp (current user)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{auth_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/visualresumeexp",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "visualresumeexp"
+          ]
+        },
+        "response": []
+      },
+      "response": []
+    },
+    {
+      "name": "PUT Update VisualresumeExp (current user)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{auth_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"typeOfResume\": \"experience\",\n  \"data\": {\n    \"positions\": [\n      {\"company\":\"Acme\",\"title\":\"Engineer\",\"from\":\"2019\",\"to\":\"2022\"}\n    ]\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/visualresumeexp/update",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "visualresumeexp",
+            "update"
+          ]
+        },
+        "response": []
+      },
+      "response": []
+    },
+    {
+      "name": "GET VisualresumePro (current user)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{auth_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/visualresumepro",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "visualresumepro"
+          ]
+        },
+        "response": []
+      },
+      "response": []
+    },
+    {
+      "name": "PUT Update VisualresumePro (current user)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{auth_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"typeOfResume\": \"pro\",\n  \"data\": {\n    \"projects\": [\n      {\"name\":\"Project X\",\"desc\":\"Important project\"}\n    ]\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/visualresumepro/update",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "visualresumepro",
+            "update"
+          ]
+        },
+        "response": []
+      },
+      "response": []
+    },
+    {
+      "name": "POST Public Contact Form (visualresume user contact)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"johndoe\",\n  \"email\": \"sender@example.com\",\n  \"name\": \"Priya\",\n  \"message\": \"Hi, I saw your profile and would like to discuss a role.\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/visualresume/user-contact",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "visualresume",
+            "user-contact"
+          ]
+        },
+        "description": "Public endpoint. Server uses Brevo SMTP (nodemailer) to send email. In development you can set SEND_EMAILS=false on the server to receive a preview response instead of actually sending email. See controllers for send behavior. :contentReference[oaicite:6]{index=6}"
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          "// Pre-request script placeholder (none required)."
+        ],
+        "type": "text/javascript"
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "exec": [
+          "// Tests can be added per-request as needed."
+        ],
+        "type": "text/javascript"
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000/api"
+    },
+    {
+      "key": "auth_token",
+      "value": ""
+    },
+    {
+      "key": "send_emails",
+      "value": "false"
+    }
+  ]
+}
