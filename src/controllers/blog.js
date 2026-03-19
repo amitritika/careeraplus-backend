@@ -3,7 +3,7 @@ const fs = require('fs');
 const slugify = require('slugify');
 const formidable = require('formidable');
 const mongoose = require('mongoose');
-const { stripHtml } = require('string-strip-html');
+const striptags = require("striptags");
 
 const Blog = require('../models/blog');
 const Category = require('../models/category');
@@ -150,8 +150,8 @@ async function createFromFields(req, res, fields, files) {
   // Auto excerpt & mdesc like legacy behavior (if not explicitly provided)
   const providedExcerpt = (toStr(fields.excerpt) || '').trim();
   const providedMdesc = (toStr(fields.mdesc) || '').trim();
-  const autoExcerpt = smartTrim(stripHtml(body).result, 320, ' ', ' ...');
-  const autoMdesc = stripHtml(body.substring(0, 160)).result;
+  const autoExcerpt = smartTrim(striptags(body), 320, ' ', ' ...');
+  const autoMdesc = striptags(body.substring(0, 160));
 
   // Build doc first (avoid TDZ)
   const doc = new Blog({
@@ -281,7 +281,7 @@ const applyUpdates = (blog, fields, files) => {
     const e = toStr(fields.excerpt);
     if (e !== null) blog.excerpt = e;
   } else if (didBodyChange) {
-    blog.excerpt = smartTrim(stripHtml(blog.body).result, 320, ' ', ' ...');
+    blog.excerpt = smartTrim(striptags(blog.body), 320, ' ', ' ...');
   }
 
   // mtitle
@@ -293,7 +293,7 @@ const applyUpdates = (blog, fields, files) => {
     const d = toStr(fields.mdesc);
     if (d !== null) blog.mdesc = d;
   } else if (didBodyChange) {
-    blog.mdesc = stripHtml(blog.body.substring(0, 160)).result;
+    blog.mdesc = striptags(blog.body.substring(0, 160));
   }
 
   // Categories
